@@ -12,10 +12,10 @@ app = FastAPI(title="JosueScraper API")
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
+origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # En producción usa tu dominio de Vercel
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

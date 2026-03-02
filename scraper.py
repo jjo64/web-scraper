@@ -4,9 +4,32 @@ import jmespath
 from urllib.parse import urljoin, urlparse
 from curl_cffi.requests import AsyncSession
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
-from readability import Document
-from markdownify import markdownify as md
+
+# Optional dependencies for Python 3.14 compatibility
+try:
+    from playwright.async_api import async_playwright
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
+
+try:
+    from readability import Document
+    HAS_READABILITY = True
+except ImportError:
+    HAS_READABILITY = False
+
+try:
+    from markdownify import markdownify as md
+    HAS_MARKDOWNIFY = True
+except ImportError:
+    HAS_MARKDOWNIFY = False
+
+# Detect if lxml is available
+try:
+    import lxml
+    BS4_PARSER = "lxml"
+except ImportError:
+    BS4_PARSER = "html.parser"
 
 BASE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -25,6 +48,9 @@ class UniversalScraper:
 
     async def _get_html_playwright(self, url: str) -> str:
         """Renderiza JS solo cuando es estrictamente necesario."""
+        if not HAS_PLAYWRIGHT:
+            raise Exception("Playwright no está disponible en este entorno (Python 3.14).")
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             context = await browser.new_context(user_agent=BASE_HEADERS["User-Agent"])
@@ -114,7 +140,7 @@ class UniversalScraper:
                 html = r.text
 
             # Estrategia 3: Parseo
-            soup = BeautifulSoup(html, "lxml")
+            soup = BeautifulSoup(html, BS4_PARSER)
             
             # Metadata básica
             for tag in soup.find_all("meta"):
@@ -140,8 +166,11 @@ class UniversalScraper:
             resultado["datos_estructurados"].update(self._extraer_datos_estructurados(html, soup))
             
             # Readability (Contenido principal)
-            doc = Document(html)
-            resultado["articulo_principal_md"] = md(doc.summary(), strip=['a', 'img']).strip()
+            if HAS_READABILITY and HAS_MARKDOWNIFY:
+                doc = Document(html)
+                resultado["articulo_principal_md"] = md(doc.summary(), strip=['a', 'img']).strip()
+            else:
+                resultado["articulo_principal_md"] = "Contenido no disponible (Falta readability/markdownify)"
 
             return resultado
 
