@@ -1,81 +1,111 @@
 import os
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from scraper import UniversalScraper
+import logging
 
-# Configuración del limitador de peticiones (Rate Limiting)
+# ── Logging primero que todo ──
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+logger.info("=== INICIANDO APLICACIÓN ===")
+logger.info(f"Python path: {os.sys.path}")
+logger.info(f"PORT env: {os.getenv('PORT', 'NO DEFINIDO')}")
+logger.info(f"ALLOWED_ORIGINS env: {os.getenv('ALLOWED_ORIGINS', 'NO DEFINIDO')}")
+
+try:
+    from fastapi import FastAPI, Request, HTTPException
+    logger.info("✓ FastAPI importado")
+except Exception as e:
+    logger.error(f"✗ Error importando FastAPI: {e}")
+    raise
+
+try:
+    from fastapi.middleware.cors import CORSMiddleware
+    logger.info("✓ CORSMiddleware importado")
+except Exception as e:
+    logger.error(f"✗ Error importando CORSMiddleware: {e}")
+    raise
+
+try:
+    from pydantic import BaseModel
+    logger.info("✓ Pydantic importado")
+except Exception as e:
+    logger.error(f"✗ Error importando Pydantic: {e}")
+    raise
+
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    logger.info("✓ SlowAPI importado")
+except Exception as e:
+    logger.error(f"✗ Error importando SlowAPI: {e}")
+    raise
+
+try:
+    from scraper import UniversalScraper
+    logger.info("✓ UniversalScraper importado")
+except Exception as e:
+    logger.error(f"✗ Error importando scraper: {e}")
+    raise
+
+logger.info("=== TODOS LOS IMPORTS OK, CREANDO APP ===")
+
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(
     title="JosueScraper API",
-    description="API de extracción universal con soporte para JS, APIs y Datos Estructurados",
+    description="API de extracción universal",
     version="1.0.0"
 )
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# --- CONFIGURACIÓN DE CORS ---
-# Lee la variable que pusiste en Railway. Si no existe, permite todo por defecto en local.
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+logger.info(f"CORS origins configurados: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["https://josuecueva.vercel.app"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
-# Modelo de datos para la petición
 class ScrapeRequest(BaseModel):
     url: str
     modo: str = "auto"
 
-# --- ENDPOINTS ---
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=== APP STARTUP COMPLETO ===")
+    logger.info(f"Escuchando en puerto: {os.getenv('PORT', '8000')}")
 
 @app.get("/")
 async def root():
-    """Endpoint de bienvenida para verificar que la API está viva."""
-    return {
-        "message": "JosueScraper API está funcionando",
-        "status": "online",
-        "docs": "/docs"
-    }
+    logger.info("GET / llamado")
+    return {"message": "JosueScraper API está funcionando", "status": "online"}
 
 @app.get("/health")
 async def health_check():
-    """Endpoint para el Health Check de Railway."""
+    logger.info("GET /health llamado")
     return {"status": "healthy"}
 
 @app.post("/scrape")
 @limiter.limit("10/minute")
 async def handle_scrape(request: Request, body: ScrapeRequest):
-    """
-    Endpoint principal de scraping.
-    Recibe una URL y un modo (auto, html, js, api).
-    """
+    logger.info(f"POST /scrape - URL: {body.url} - Modo: {body.modo}")
     scraper = UniversalScraper()
     try:
-        # Ejecutamos el scraping
         data = await scraper.scrape(body.url, modo=body.modo)
-        
-        # Si el scraper devuelve un error interno
         if data.get("error"):
+            logger.warning(f"Scraper error interno: {data['error']}")
             raise HTTPException(status_code=422, detail=data["error"])
-            
+        logger.info("Scrape completado OK")
         return data
-        
     except Exception as e:
-        # Error genérico del servidor
+        logger.error(f"Excepción en /scrape: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-        
     finally:
-        # IMPORTANTE: Cerramos la sesión de scraping para evitar fugas de memoria
         await scraper.close()
-
-# NOTA: No incluimos uvicorn.run() aquí. 
-# El Dockerfile se encarga de lanzar el servidor usando la variable $PORT.
