@@ -6,8 +6,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import uvicorn
+import os
+from dotenv import load_dotenv
 
 from scraper import UniversalScraper
+
+# Cargar variables de entorno para desarrollo local
+load_dotenv()
 
 # ── Configurar SlowAPI para Rate Limiting ──
 # Esto limita las peticiones basadas en la IP del usuario.
@@ -22,13 +27,12 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Configuración de CORS dinámica
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "https://josuecueva.vercel.app").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://josuecueva.vercel.app",
-        "http://localhost:5173",
-        "http://localhost:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,4 +103,5 @@ async def scrape(request: Request, body: ScrapeRequest):
         await scraper.close()
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
