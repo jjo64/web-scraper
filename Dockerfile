@@ -4,6 +4,8 @@ FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
 # Evitar que Python genere archivos .pyc y forzar logs en tiempo real
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+# Usamos el PORT que configuraste en Railway, por defecto 8080
+ENV PORT=8080
 
 WORKDIR /app
 

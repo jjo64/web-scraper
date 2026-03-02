@@ -52,7 +52,7 @@ class UniversalScraper:
             raise Exception("Playwright no está disponible en este entorno (Python 3.14).")
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"])
             context = await browser.new_context(user_agent=BASE_HEADERS["User-Agent"])
             page = await context.new_page()
             
