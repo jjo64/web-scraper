@@ -105,3 +105,6 @@ async def scrape(request: Request, body: ScrapeRequest):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+else:
+    # Esto es por si Railway intenta importar 'app' directamente sin pasar por __main__
+    port = int(os.environ.get("PORT", 8000))
