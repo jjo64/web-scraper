@@ -23,4 +23,4 @@ COPY . .
 EXPOSE ${PORT}
 
 # Comando para arrancar la app
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT}
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
