@@ -10,6 +10,8 @@ import os
 from dotenv import load_dotenv
 
 from scraper import UniversalScraper
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 # Cargar variables de entorno para desarrollo local
 load_dotenv()
