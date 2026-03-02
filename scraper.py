@@ -204,7 +204,7 @@ class UniversalScraper:
         self.session = AsyncSession(impersonate="chrome124", headers=BASE_HEADERS)
 
     async def close(self):
-        self.session.close()
+        await self.session.close()
 
     async def _get_html_playwright(self, url: str) -> str:
         """Obtiene el HTML rendereado usando Playwright."""
